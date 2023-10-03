@@ -26,6 +26,6 @@ select
     t.amount,
     t.timestamp
 from wallets w
-inner join transactions t
+left join transactions t
 on w.id = t.wallet_id and t.snapshot is null
 where w.id = $1;

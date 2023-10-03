@@ -4,9 +4,11 @@ go 1.20
 
 require (
 	github.com/Netflix/go-env v0.0.0-20220526054621-78278af1949d
+	github.com/Rhymond/go-money v1.0.10
 	github.com/go-redsync/redsync/v4 v4.9.4
 	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.2.1
 )
 

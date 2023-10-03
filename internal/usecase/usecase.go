@@ -1,9 +1,14 @@
 package usecase
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"github.com/guilhermealvess/guicpay/internal/domain/entity"
+)
 
 type RegisterWallet interface {
-	Execute(ctx context.Context, params RegisterWalletParams) error
+	Execute(ctx context.Context, params RegisterWalletParams) (*entity.Wallet, error)
 }
 
 type ProcessDeposit interface {
@@ -12,4 +17,8 @@ type ProcessDeposit interface {
 
 type ProcessTransfer interface {
 	Execute(ctx context.Context, params ProcessTransferParams) error
+}
+
+type CalculatorBalance interface {
+	Execute(ctx context.Context, walletID uuid.UUID) (int64, error)
 }

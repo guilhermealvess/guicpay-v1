@@ -2,14 +2,14 @@ create type wallet_type AS ENUM ('seller', 'commom');
 
 create table if not exists wallets(
     id uuid primary key,
-    created_at timestamptz not null,
-    updated_at timestamptz not null,
     customer_name varchar(255) not null,
-    document_number varchar(14) not null,
+    document_number varchar(14) unique not null,
     wallet_type wallet_type not null,
-    email varchar(255) not null,
+    email varchar(255) unique not null,
     encoded_password varchar(255) not null,
-    phone_number varchar(20) not null
+    phone_number varchar(20) unique not null,
+    created_at timestamptz not null,
+    updated_at timestamptz not null
 );
 
 create type transaction_type AS ENUM ('deposit', 'transfer');
@@ -25,5 +25,5 @@ create table if not exists "transactions" (
     amount integer not null,
     "timestamp" timestamptz not null,
     snapshot uuid,
-    foreign key (id) references wallets(id)
+    foreign key (wallet_id) references wallets(id)
 );

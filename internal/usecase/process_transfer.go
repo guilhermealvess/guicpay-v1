@@ -2,12 +2,12 @@ package usecase
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/guilhermealvess/guicpay/internal/domain/event"
 	"github.com/guilhermealvess/guicpay/internal/domain/repository"
 	"github.com/guilhermealvess/guicpay/internal/domain/service"
+	"github.com/guilhermealvess/guicpay/internal/settings"
 )
 
 type processTransfer struct {
@@ -15,6 +15,15 @@ type processTransfer struct {
 	eventNotification event.EventNotification
 	authorizeService  service.AuthorizeService
 	mutexService      service.MutexService
+}
+
+func NewProcessTransfer(repo repository.WalletRepository, evnt event.EventNotification, auth service.AuthorizeService, mu service.MutexService) ProcessTransfer {
+	return &processTransfer{
+		repository:        repo,
+		eventNotification: evnt,
+		authorizeService:  auth,
+		mutexService:      mu,
+	}
 }
 
 type ProcessTransferParams struct {
@@ -25,22 +34,24 @@ type ProcessTransferParams struct {
 }
 
 func (u processTransfer) Execute(ctx context.Context, params ProcessTransferParams) error {
+	// ctx, cancel := context.WithTimeout(ctx, settings.Env.TransactionTimeout)
+	// defer cancel()
+
 	sender, err := u.repository.GetWalletByID(ctx, params.SenderWalletID)
 	if err != nil {
 		return err
 	}
 
-	receiver, err := u.repository.GetWalletByID(ctx, params.ReceiverWalletID)
+	transactions, err := sender.Transfer(params.ReceiverWalletID, params.Currency, params.Amount)
 	if err != nil {
 		return err
 	}
 
-	transactions, err := sender.Transfer(*receiver, params.Currency, params.Amount)
-	if err != nil {
+	if err := u.authorizeService.Authorize(ctx, sender.Email, sender.EncodedPassword); err != nil {
 		return err
 	}
 
-	mutex := u.mutexService.NewMutex(sender.ID.String(), 7*time.Second)
+	mutex := u.mutexService.NewMutex(sender.ID.String(), settings.Env.TransactionTimeout)
 	if err := mutex.Lock(ctx); err != nil {
 		return err
 	}
@@ -51,12 +62,7 @@ func (u processTransfer) Execute(ctx context.Context, params ProcessTransferPara
 		return err
 	}
 
-	if err := u.authorizeService.Authorize(ctx, sender.Email, sender.EncodedPassword); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := u.eventNotification.PublishTransactions(ctx, *transactions); err != nil {
+	if err := u.eventNotification.PublishEntity(ctx, *transactions); err != nil {
 		tx.Rollback()
 		return err
 	}

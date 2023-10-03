@@ -16,6 +16,14 @@ type processDeposit struct {
 	authorizeService  service.AuthorizeService
 }
 
+func NewProcessDeposit(repo repository.WalletRepository, evnt event.EventNotification, auth service.AuthorizeService) ProcessDeposit {
+	return &processDeposit{
+		repository:        repo,
+		eventNotification: evnt,
+		authorizeService:  auth,
+	}
+}
+
 type DepositParams struct {
 	WalletReceiverID uuid.UUID
 	Amount           uint64
@@ -23,6 +31,9 @@ type DepositParams struct {
 }
 
 func (u processDeposit) Execute(ctx context.Context, params DepositParams) error {
+	// ctx, cancel := context.WithTimeout(ctx, settings.Env.TransactionTimeout)
+	// defer cancel()
+
 	wallet, err := u.repository.GetWalletByID(ctx, params.WalletReceiverID)
 	if err != nil {
 		return err
@@ -42,7 +53,7 @@ func (u processDeposit) Execute(ctx context.Context, params DepositParams) error
 		return err
 	}
 
-	if err := u.eventNotification.PublishTransactions(ctx, []entity.Transaction{*transaction}); err != nil {
+	if err := u.eventNotification.PublishEntity(ctx, []entity.Transaction{*transaction}); err != nil {
 		tx.Rollback()
 		return err
 	}

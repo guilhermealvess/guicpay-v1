@@ -14,8 +14,36 @@ type walletRepository struct {
 	db *sql.DB
 }
 
-func NewWalletRepository() *walletRepository {
-	return &walletRepository{}
+func NewWalletRepository(db *sql.DB) repository.WalletRepository {
+	return &walletRepository{
+		db: db,
+	}
+}
+
+func (r walletRepository) SaveWallet(ctx context.Context, wallet entity.Wallet) (repository.Tx, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	query := queries.New(tx)
+	params := queries.SaveWalletParams{
+		ID:              wallet.ID,
+		WalletType:      queries.WalletType(wallet.WalletType),
+		CustomerName:    wallet.CustomerName,
+		DocumentNumber:  wallet.DocumentNumber,
+		Email:           wallet.Email,
+		EncodedPassword: wallet.EncodedPassword,
+		PhoneNumber:     wallet.Phone,
+		CreatedAt:       wallet.CreatedAt,
+		UpdatedAt:       wallet.UpdatedAt,
+	}
+
+	if err := query.SaveWallet(ctx, params); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 func (r walletRepository) SaveTransaction(ctx context.Context, transactions []entity.Transaction) (repository.Tx, error) {
@@ -67,17 +95,20 @@ func (r walletRepository) GetWalletByID(ctx context.Context, walletID uuid.UUID)
 			wallet.WalletType = entity.WalletType(row.WalletType)
 		}
 
-		t := entity.Transaction{
-			ID:              row.TransactionID,
-			ReferenceID:     row.ReferenceID,
-			WalletID:        row.WalletID,
-			TransactionType: entity.TransactionType(row.TransactionType),
-			EntryType:       entity.EntryType(row.EntriesType),
-			Currency:        row.Currency,
-			Amount:          uint64(row.Amount),
-			Timestamp:       row.Timestamp,
+		if row.TransactionID.UUID != uuid.Nil {
+			t := entity.Transaction{
+				ID:              row.TransactionID.UUID,
+				ReferenceID:     row.ReferenceID.UUID,
+				WalletID:        row.WalletID,
+				TransactionType: entity.TransactionType(row.TransactionType.TransactionType),
+				EntryType:       entity.EntryType(row.EntriesType.TransactionEntryType),
+				Currency:        row.Currency.String,
+				Amount:          uint64(row.Amount.Int32),
+				Timestamp:       row.Timestamp.Time,
+			}
+			transactions[i] = t
 		}
-		transactions[i] = t
+
 	}
 	wallet.Transactions = transactions
 

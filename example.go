@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
+	"github.com/guilhermealvess/guicpay/internal/infra/service"
+	"github.com/guilhermealvess/guicpay/internal/settings"
 	goredislib "github.com/redis/go-redis/v9"
 )
 
-func main() {
+func lock() {
 	start := time.Now()
 	// Create a pool with go-redis (or redigo) which is the pool redisync will
 	// use while communicating with Redis. This can also be any pool that
@@ -33,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 	if err := mutex.Lock(); err != nil {
 		println(time.Since(start).String())
 		panic("TESTE TODO")
@@ -44,4 +47,25 @@ func main() {
 	if ok, err := mutex.Unlock(); !ok || err != nil {
 		panic("unlock failed")
 	}
+}
+
+func auth() {
+	authService := service.NewAuthorizeService(settings.Env.AuthorizeServiceUrl)
+	ctx := context.Background()
+
+	if err := authService.RegisterUser(ctx, "id_random", "test@gmail.com", "Pass123"); err != nil {
+		panic(err)
+	}
+
+	println("Success")
+
+	if err := authService.Authorize(ctx, "test@gmail.com", "Pass123"); err != nil {
+		panic(err)
+	}
+
+	println("Success")
+}
+
+func main() {
+	auth()
 }

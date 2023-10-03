@@ -1,10 +1,13 @@
 package entity
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/guilhermealvess/guicpay/internal/settings"
 )
 
 const (
@@ -62,8 +65,17 @@ func NewWallet(customerName, documentNumber, email, password, phone string) (*Wa
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
+	wallet.EncodedPassword = wallet.EncodePassword(password)
 
 	return &wallet, nil
+}
+
+func (w *Wallet) EncodePassword(password string) string {
+	hash := sha256.New()
+	hash.Write([]byte(password + settings.Env.Salt))
+	hashSum := hash.Sum(nil)
+	hashString := hex.EncodeToString(hashSum)
+	return hashString
 }
 
 func (w *Wallet) Deposit(currency string, amount uint64) (*Transaction, error) {
@@ -82,11 +94,11 @@ func (w *Wallet) Deposit(currency string, amount uint64) (*Transaction, error) {
 	return &t, t.Ok()
 }
 
-func (w *Wallet) Transfer(target Wallet, currency string, amount uint64) (*Transactions, error) {
+func (w *Wallet) Transfer(receiverID uuid.UUID, currency string, amount uint64) (*Transactions, error) {
 	if w.WalletType == WalletTypeSeller {
 		return nil, errors.New("TODO")
 	}
-	
+
 	if w.Transactions.Balance() < int64(amount) {
 		return nil, errors.New("TODO")
 	}
@@ -108,7 +120,7 @@ func (w *Wallet) Transfer(target Wallet, currency string, amount uint64) (*Trans
 		ID:              uuid.New(),
 		ReferenceID:     referenceID,
 		Timestamp:       now,
-		WalletID:        target.ID,
+		WalletID:        receiverID,
 		TransactionType: TransactionTypeTransfer,
 		EntryType:       EntryTypeInbound,
 		Currency:        currency,
